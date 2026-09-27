@@ -14,6 +14,7 @@ the user's full SQL runs locally. Read `README.md` for the product; this file is
 | `packages/demo-api` | Deterministic GraphQL API used by tests and first-run demos | `packages/demo-api/CLAUDE.md` |
 | `e2e/` | Playwright tests driving the real app | |
 | `scripts/` | `probe-apis.ts` (real public APIs), `run-sql.ts` (one statement, full trace) | |
+| `docs/plans/` | Agreed plans not yet implemented -- read before starting related work | |
 
 Ports: workbench API `5470`, demo API `5471`, Vite dev UI `5173`.
 
