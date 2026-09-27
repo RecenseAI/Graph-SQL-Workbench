@@ -1,0 +1,35 @@
+{
+    "name":  "graphql-workbench",
+    "private":  true,
+    "version":  "1.0.0",
+    "description":  "A MySQL-Workbench-class SQL IDE for any GraphQL endpoint. GraphQL fetches, DuckDB computes.",
+    "type":  "module",
+    "license":  "MIT",
+    "workspaces":  [
+                       "packages/*"
+                   ],
+    "engines":  {
+                    "node":  "\u003e=20.11.0"
+                },
+    "scripts":  {
+                    "dev":  "concurrently -k -n demo,api,ui -c magenta,cyan,green \"npm:dev:demo\" \"npm:dev:api\" \"npm:dev:ui\"",
+                    "dev:demo":  "npm -w @gqlwb/demo-api run dev",
+                    "dev:api":  "npm -w @gqlwb/server run dev",
+                    "dev:ui":  "npm -w @gqlwb/web run dev",
+                    "build":  "npm -w @gqlwb/web run build",
+                    "start":  "npm run build \u0026\u0026 concurrently -k -n demo,app -c magenta,cyan \"npm:dev:demo\" \"npm -w @gqlwb/server run start\"",
+                    "serve":  "npm -w @gqlwb/server run start",
+                    "test":  "vitest run",
+                    "test:watch":  "vitest",
+                    "typecheck":  "tsc -p packages/shared \u0026\u0026 tsc -p packages/demo-api \u0026\u0026 tsc -p packages/server \u0026\u0026 tsc -p packages/web",
+                    "test:e2e":  "playwright test",
+                    "test:all":  "vitest run \u0026\u0026 playwright test"
+                },
+    "devDependencies":  {
+                            "@types/node":  "^24.3.0",
+                            "concurrently":  "^10.0.5",
+                            "tsx":  "^4.23.15",
+                            "typescript":  "^5.9.3",
+                            "vitest":  "^5.0.2"
+                        }
+}

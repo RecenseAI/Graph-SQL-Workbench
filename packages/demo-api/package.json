@@ -1,0 +1,14 @@
+{
+  "name": "@gqlwb/demo-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.12.5",
+    "graphql": "^17.0.2"
+  }
+}

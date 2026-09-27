@@ -1,0 +1,159 @@
+@import 'tailwindcss';
+
+/*
+ * Two accents carry meaning throughout the app: cyan marks the SQL/relational side
+ * (editor, grid, results) and magenta marks the GraphQL side (schema tree, generated
+ * documents, fetch plan). Bridging those two worlds is what the tool does.
+ */
+@theme {
+  --color-bg-0: #0b0e14;
+  --color-bg-1: #11151d;
+  --color-bg-2: #171c26;
+  --color-bg-3: #1e2430;
+  --color-bg-4: #262e3d;
+  --color-line: #242b38;
+  --color-line-strong: #333d4f;
+  --color-ink-0: #e6edf7;
+  --color-ink-1: #9fb0c8;
+  --color-ink-2: #697a93;
+  --color-ink-3: #4c5a6e;
+  --color-sql: #22d3ee;
+  --color-sql-dim: #0e7490;
+  --color-gql: #e535ab;
+  --color-gql-dim: #83176a;
+  --color-ok: #34d399;
+  --color-warn: #fbbf24;
+  --color-err: #f87171;
+  --color-num: #7dd3fc;
+  --color-str: #b6e3a8;
+  --color-bool: #d8b4fe;
+  --color-temporal: #fcd34d;
+  --color-nullish: #5b6a80;
+
+  --color-grid: #1e2430;
+
+  --font-sans: 'Inter var', 'Inter', ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+
+  --radius-panel: 8px;
+}
+
+/*
+ * Categorical series palette.
+ *
+ * Declared outside @theme on purpose: the chart composes these names at runtime
+ * (`var(--color-series-${slot})`), which Tailwind's source scan cannot see, so a theme variable
+ * would be tree-shaken away and every mark would render black.
+ *
+ * Both modes are validated with the dataviz validator against this app's real chart surfaces:
+ * lightness band, chroma floor, CVD separation (worst adjacent dE 8.4 protan dark / 9.1 light),
+ * normal-vision floor (19.3 / 19.6) and contrast. Three light slots fall below 3:1 on white, which
+ * the validator flags as needing relief: the legend carries visible labels and the Result tab is a
+ * full table view of the same numbers, so nothing is reachable by colour alone.
+ *
+ * Slots are assigned in fixed order and never cycled; a ninth series is capped rather than invented.
+ */
+:root {
+  --color-series-1: #3987e5;
+  --color-series-2: #d95926;
+  --color-series-3: #199e70;
+  --color-series-4: #c98500;
+  --color-series-5: #d55181;
+  --color-series-6: #008300;
+  --color-series-7: #9085e9;
+  --color-series-8: #e66767;
+}
+
+/* Light theme. Roles stay identical; only the values swap. */
+:root[data-theme='light'] {
+  --color-bg-0: #f6f8fb;
+  --color-bg-1: #ffffff;
+  --color-bg-2: #f1f4f9;
+  --color-bg-3: #e6ebf3;
+  --color-bg-4: #d8e0ec;
+  --color-line: #dde4ee;
+  --color-line-strong: #c2cdde;
+  --color-ink-0: #131923;
+  --color-ink-1: #48566b;
+  --color-ink-2: #6b7a90;
+  --color-ink-3: #93a0b3;
+  --color-sql: #0e7490;
+  --color-sql-dim: #67e8f9;
+  --color-gql: #be1e8c;
+  --color-gql-dim: #f9c3e6;
+  --color-ok: #047857;
+  --color-warn: #b45309;
+  --color-err: #b91c1c;
+  --color-num: #1d4ed8;
+  --color-str: #15803d;
+  --color-bool: #7c3aed;
+  --color-temporal: #a16207;
+  --color-nullish: #94a3b8;
+  /* The same eight hues stepped for the light surface, validated separately.
+     Three slots sit below 3:1 against white, which the validator flags as
+     needing relief -- the legend carries visible labels and the Result tab is a
+     full table view of the same data, so no value is reachable only by colour. */
+  --color-series-1: #2a78d6;
+  --color-series-2: #eb6834;
+  --color-series-3: #1baf7a;
+  --color-series-4: #eda100;
+  --color-series-5: #e87ba4;
+  --color-series-6: #008300;
+  --color-series-7: #4a3aa7;
+  --color-series-8: #e34948;
+  --color-grid: #e6ebf3;
+}
+
+* { min-width: 0; }
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg-0);
+  color: var(--color-ink-0);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Compact, unobtrusive scrollbars -- this is a dense tool. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--color-ink-3); background-clip: content-box; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+:focus-visible {
+  outline: 1px solid var(--color-sql);
+  outline-offset: 1px;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-sql) 35%, transparent);
+}
+
+@utility panel {
+  background: var(--color-bg-1);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
