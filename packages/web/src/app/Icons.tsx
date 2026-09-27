@@ -213,6 +213,13 @@ export const IconBook = (p: IconProps) => (
     <path d="M2.6 3.2v10" />
   </Svg>
 );
+export const IconHelp = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M6.3 6.2a1.8 1.8 0 0 1 3.5.5c0 1.2-1.8 1.6-1.8 2.7" />
+    <path d="M8 11.4v.4" />
+  </Svg>
+);
 export const IconLayers = (p: IconProps) => (
   <Svg {...p}>
     <path d="M8 1.9l6 3-6 3-6-3z" />

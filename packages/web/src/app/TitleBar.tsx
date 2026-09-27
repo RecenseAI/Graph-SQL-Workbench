@@ -1,6 +1,6 @@
 import { useWorkbench } from '../store/workbench.ts';
 import { Badge, IconButton, Select, cx } from '../ui/primitives.tsx';
-import { IconBook, IconGraph, IconMoon, IconRefresh, IconSearch, IconSun, IconWarning } from './Icons.tsx';
+import { IconGraph, IconHelp, IconMoon, IconRefresh, IconSearch, IconSun, IconWarning } from './Icons.tsx';
 
 /** Identity, which connection is live, and the two controls that belong at the top level. */
 export function TitleBar() {
@@ -84,7 +84,7 @@ export function TitleBar() {
       )}
 
       <IconButton label="SQL over GraphQL cheat sheet (F1)" size={24} onClick={() => setHelpOpen(true)}>
-        <IconBook size={14} />
+        <IconHelp size={15} />
       </IconButton>
 
       <IconButton

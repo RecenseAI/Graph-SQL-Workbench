@@ -174,6 +174,33 @@ results with totals computed independently in plain JavaScript from the same see
 For `test:e2e`, Playwright needs a Chromium build. Run `npx playwright install chromium` once. If
 your browsers live elsewhere, set `PLAYWRIGHT_BROWSERS_PATH`.
 
+## Developing
+
+`CLAUDE.md` at the root and in each package explains the architecture, the invariants that must
+not break, and the environment gotchas. Read them before changing the engine; they are also
+loaded automatically by [Claude Code](https://claude.com/claude-code).
+
+Scripts for working on the engine:
+
+```bash
+npx tsx scripts/run-sql.ts <endpoint> "<sql>"   # trace one statement: catalog, GraphQL sent, pushdown, fetch, result
+npx tsx scripts/probe-apis.ts [name]            # run the engine against public APIs
+node scripts/screenshots.mjs                    # screenshot every view in both themes (app must be running)
+```
+
+For Claude Code users, `.claude/` provides:
+
+| Kind | Name | Use it to |
+| --- | --- | --- |
+| Skill | `verify-change` | Run the full check sequence before calling a change done |
+| Skill | `onboard-graphql-api` | Diagnose and fix how a specific GraphQL API is handled |
+| Skill | `add-pagination-style` | Support a new way APIs page through results |
+| Skill | `add-pushdown-rule` | Change which filters are sent to the API, safely |
+| Skill | `add-workbench-statement` | Add statements like `SHOW` / `MATERIALIZE`, or MySQL macros |
+| Agent | `pushdown-safety-reviewer` | Review a diff for changes that could return wrong results silently |
+| Agent | `graphql-api-prober` | Report how well the engine handles one or more endpoints |
+| Agent | `ui-verifier` | Screenshot and review the UI in both themes |
+
 ## Tested against public APIs
 
 `npx tsx scripts/probe-apis.ts [name]` runs the real engine against these endpoints (no auth needed).
