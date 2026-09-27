@@ -38,6 +38,8 @@ export interface StatementAnalysis {
   outerNullable: Set<string>;
   /** True when the statement aggregates, windows or groups -- which blocks LIMIT pushdown. */
   aggregates: boolean;
+  /** Top-level AND terms in the outermost WHERE, pushable or not. */
+  whereTerms: number;
 }
 
 const AGGREGATE_NAMES = new Set([
@@ -183,12 +185,17 @@ export function analyzeStatement(sql: string, knownRelations: Iterable<string>):
     pushableLimit: null,
     outerNullable: new Set(),
     aggregates: false,
+    whereTerms: 0,
   };
 
   let ast: unknown;
   try {
     const parser = new Parser();
-    ast = parser.astify(sql, { database: 'postgresql' });
+    // DuckDB's GROUP BY ALL / ORDER BY ALL name no columns beyond the select list, so rewriting
+    // them to a positional reference changes nothing this analysis reads -- and lets a statement
+    // that uses them keep its projection pruning and pushdown instead of falling back.
+    const forParser = sql.replace(/\bGROUP\s+BY\s+ALL\b/gi, 'GROUP BY 1').replace(/\bORDER\s+BY\s+ALL\b/gi, 'ORDER BY 1');
+    ast = parser.astify(forParser, { database: 'postgresql' });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     analysis.parseError = message;
@@ -280,6 +287,7 @@ export function analyzeStatement(sql: string, knownRelations: Iterable<string>):
   if (isNode(root) && isNode(root.where)) {
     const terms: Node[] = [];
     andTerms(root.where, terms);
+    analysis.whereTerms = terms.length;
     for (const term of terms) {
       if (term.type !== 'binary_expr') continue;
       const operator = typeof term.operator === 'string' ? term.operator.toLowerCase() : '';
@@ -317,12 +325,18 @@ export function analyzeStatement(sql: string, knownRelations: Iterable<string>):
     }
   }
 
-  // LIMIT pushdown, only when it cannot change the answer.
+  // LIMIT pushdown, only when it cannot change the answer. Beyond joins and aggregates, two more
+  // things break it: an ORDER BY (the endpoint would return *its* first N, not the statement's),
+  // and any WHERE term applied locally (N rows fetched, then some filtered away). The second is
+  // settled by the planner once it knows which predicates were delegated.
+  const orderBy = isNode(root) ? root.orderby : null;
+  const hasOrderBy = Array.isArray(orderBy) ? orderBy.length > 0 : isNode(orderBy);
   if (
     isNode(root) &&
     relationsInStatement.length === 1 &&
     items.length === 1 &&
     !analysis.aggregates &&
+    !hasOrderBy &&
     analysis.outerNullable.size === 0
   ) {
     const limit = extractLimit(root);

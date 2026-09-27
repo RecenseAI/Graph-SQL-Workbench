@@ -147,6 +147,26 @@ function findTotalField(type: GraphQLObjectType): string | undefined {
   return undefined;
 }
 
+/**
+ * A field that tells the client whether another page exists: `info { next }` (a next page
+ * number, null at the end), `pageInfo { hasNextPage }`, or a top-level `hasMore`.
+ */
+function findNextIndicator(type: GraphQLObjectType): string[] | undefined {
+  const NEXT = /^(next|nextPage|hasNextPage|hasNext|hasMore|nextCursor)$/i;
+  const fields = type.getFields();
+  for (const [name, field] of Object.entries(fields)) {
+    if (NEXT.test(name) && isScalarType(getNamedType(field.type))) return [name];
+  }
+  for (const [name, field] of Object.entries(fields)) {
+    const named = getNamedType(field.type);
+    if (!isObjectType(named) || isListType(getNullableType(field.type))) continue;
+    for (const [inner, innerField] of Object.entries(named.getFields())) {
+      if (NEXT.test(inner) && isScalarType(getNamedType(innerField.type))) return [name, inner];
+    }
+  }
+  return undefined;
+}
+
 export function analyseRootField(field: GraphQLField<unknown, unknown>, defaultPageSize: number): RootFieldShape {
   const warnings: string[] = [];
   const args = field.args;
@@ -184,7 +204,22 @@ export function analyseRootField(field: GraphQLField<unknown, unknown>, defaultP
   }
 
   if (isObjectType(nullable)) {
-    const listField = findRowListField(nullable);
+    const pageInfoProbe = findPageInfo(nullable);
+    const totalProbe = findTotalField(nullable);
+    const nextProbe = findNextIndicator(nullable);
+    const hasPagingArgs = Boolean(limitArg || offsetArg || pageArg || perPageArg || firstArg || afterArg);
+
+    // An object that merely *contains* a list is not a collection. `continent(code: "EU")`
+    // returns one continent with a `countries` list inside it; reading that list as the table's
+    // rows would be wrong. Only unwrap when something says this object is a page of results:
+    // Relay edges, paging arguments, page metadata, a total, or a conventional wrapper name.
+    const wrapperName = /(Connection|Page|Paged|PaginatedList|List|Result|Results|Response|Collection)$/i;
+    const looksLikeCollection =
+      Boolean(nullable.getFields().edges) ||
+      hasPagingArgs ||
+      Boolean(pageInfoProbe || totalProbe || nextProbe) ||
+      wrapperName.test(nullable.name);
+    const listField = looksLikeCollection ? findRowListField(nullable) : undefined;
 
     // No list anywhere: a single object, which is still a perfectly good one-row table.
     if (!listField) {
@@ -225,7 +260,27 @@ export function analyseRootField(field: GraphQLField<unknown, unknown>, defaultP
         rowType: listField.rowType,
         single: false,
         warnings,
-        pagination: { style: 'page', nodesPath, pageArg, perPageArg, totalField, defaultPageSize },
+        pagination: {
+          style: 'page',
+          nodesPath,
+          pageArg,
+          perPageArg,
+          totalField,
+          ...(nextProbe ? { nextPagePath: nextProbe } : {}),
+          defaultPageSize,
+        },
+      };
+    }
+
+    // Page numbers with a server-chosen page size, e.g. `characters(page: 2) { info { next } }`.
+    // Without a size argument a short page proves nothing, so the loop follows the server's own
+    // "is there a next page" field instead.
+    if (pageArg && nextProbe) {
+      return {
+        rowType: listField.rowType,
+        single: false,
+        warnings,
+        pagination: { style: 'page', nodesPath, pageArg, nextPagePath: nextProbe, totalField, defaultPageSize },
       };
     }
 

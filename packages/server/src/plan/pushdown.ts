@@ -14,14 +14,15 @@ import type { ExtractedPredicate } from '../sql/analyze.ts';
 /**
  * Maps SQL predicates onto GraphQL arguments.
  *
- * The single invariant that makes this safe: a pushed predicate is *also* left in the SQL. The
- * planner never rewrites the WHERE clause, so a mapping that is wrong about the endpoint's
- * semantics can only cause more rows to be fetched than necessary -- never a wrong answer. That
- * is what lets the workbench push filters at all, which every comparable tool declines to do.
+ * Two things keep this honest, and they cover different failures:
  *
- * Beyond that, a predicate is only pushed when the schema actually has somewhere to put it: the
- * argument (or nested filter field) must exist in the introspected catalog, and its type must be
- * compatible with the literal. Anything unproven stays local, with a reason the user can read.
+ *  - A pushed predicate is *also* left in the SQL. If the endpoint's filter is looser than the SQL
+ *    predicate (case-insensitive where SQL is exact, say), the extra rows are removed locally.
+ *  - Nothing guards against a filter that is *stricter* upstream than in SQL: those rows never
+ *    arrive. That is why a predicate is only pushed when the schema proves somewhere to put it --
+ *    the argument or filter field must exist in the introspected catalog with a compatible type --
+ *    and only through operators whose meaning is not in doubt (eq, gt, in ...). Anything
+ *    unproven stays local, with a reason the user can read, and pushdown can be switched off.
  */
 
 export interface PushdownInput {
@@ -187,7 +188,7 @@ export function computePushdown(input: PushdownInput): PushdownOutput {
         op: predicate.op,
         reason: profile
           ? `The schema has no ${describeTarget(profile, fieldName, predicate.op)} argument for this filter.`
-          : `${table.name} has no argument named ${fieldName}, and ${predicate.op === 'eq' ? 'no filter profile is set' : 'the auto profile only pushes equality'}.`,
+          : `${table.name} has no argument, and no filter-object field, that can express ${fieldName} ${predicate.op} with an operator whose meaning is unambiguous.`,
       });
       continue;
     }
@@ -226,7 +227,11 @@ export function computePushdown(input: PushdownInput): PushdownOutput {
       op: predicate.op,
       value,
       arg: target.path.join('.'),
-      via: profile ? `${input.connection.pushdownProfile} profile` : 'exact argument name',
+      via: profile
+        ? `${input.connection.pushdownProfile} profile`
+        : target.path.length === 1
+          ? 'exact argument name'
+          : 'filter object',
     });
   }
 
@@ -267,12 +272,13 @@ function resolveTarget(
   // The auto profile: exact argument name, equality only. An argument called `status` almost
   // certainly means status = x; it certainly does not mean status > x.
   if (!profile) {
-    if (op !== 'eq' && op !== 'in') return null;
-    const arg = findArg(table.args, fieldName);
-    if (!arg) return null;
-    if (op === 'in' && arg.kind !== 'list') return null;
-    if (op === 'eq' && arg.kind === 'input') return null;
-    return { path: [arg.name], arg };
+    const direct = findArg(table.args, fieldName);
+    if (direct && (op === 'eq' || op === 'in')) {
+      if (op === 'in' && direct.kind !== 'list') return null;
+      if (op === 'eq' && direct.kind === 'input') return null;
+      return { path: [direct.name], arg: direct };
+    }
+    return discoverFilterObject(table, fieldName, op);
   }
 
   const spelling = profile.operators[op];
@@ -312,6 +318,51 @@ function resolveTarget(
   const operatorArg = fieldArg.inputFields?.find((f) => f.name.toLowerCase() === spelling.toLowerCase());
   if (!operatorArg) return null;
   return { path: [filterArg.name, fieldArg.name, operatorArg.name], arg: operatorArg };
+}
+
+/**
+ * Operator spellings whose meaning is not in doubt across GraphQL APIs. `contains`, `like`,
+ * `regex` and friends are deliberately absent: their semantics differ from SQL LIKE from one API
+ * to the next, and a filter that is stricter upstream than in SQL would drop rows.
+ */
+const AUTO_OPERATORS: Partial<Record<PushdownOp, string[]>> = {
+  eq: ['eq', '_eq', 'equals'],
+  ne: ['ne', '_neq', 'neq'],
+  gt: ['gt', '_gt'],
+  gte: ['gte', '_gte'],
+  lt: ['lt', '_lt'],
+  lte: ['lte', '_lte'],
+  in: ['in', '_in'],
+  nin: ['nin', '_nin', 'notIn', 'not_in'],
+  isNull: ['_is_null', 'isNull', 'is_null'],
+};
+
+/**
+ * Finds a filter object the auto profile can use without being told the API's dialect:
+ * `filter: { code: { eq: "DE" } }` (Countries), `where: { status: { _eq: … } }` (Hasura),
+ * `where: { id: { equals: … } }` (Prisma), or `filter: { code: "DE" }` for plain equality.
+ * Every step is checked against the introspected input types, so nothing is invented.
+ */
+function discoverFilterObject(table: CatalogTable, fieldName: string, op: PushdownOp): Target | null {
+  const spellings = AUTO_OPERATORS[op];
+  if (!spellings) return null;
+  for (const filterArg of table.args) {
+    if (filterArg.kind !== 'input' || !filterArg.inputFields) continue;
+    const field = filterArg.inputFields.find((f) => f.name.toLowerCase() === fieldName.toLowerCase());
+    if (!field) continue;
+    if (field.kind === 'input' && field.inputFields) {
+      for (const spelling of spellings) {
+        const operator = field.inputFields.find((f) => f.name === spelling);
+        if (operator) return { path: [filterArg.name, field.name, operator.name], arg: operator };
+      }
+      continue;
+    }
+    // A bare scalar inside the filter object means equality and nothing else.
+    if (op === 'eq' && (field.kind === 'scalar' || field.kind === 'enum')) {
+      return { path: [filterArg.name, field.name], arg: field };
+    }
+  }
+  return null;
 }
 
 /** Deep-merges pushdown arguments into the user's explicit arguments. */

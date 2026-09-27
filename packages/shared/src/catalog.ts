@@ -50,6 +50,11 @@ export interface PaginationSpec {
   perPageArg?: string;
   /** A sibling total-count field on the connection object, when present. */
   totalField?: string;
+  /**
+   * Page style only: path to a field saying whether another page exists, e.g. `['info','next']`.
+   * Required when the endpoint chooses its own page size, since a short page then proves nothing.
+   */
+  nextPagePath?: string[];
   defaultPageSize: number;
 }
 

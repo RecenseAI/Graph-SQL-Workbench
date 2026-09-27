@@ -54,7 +54,7 @@ const STATEMENTS: Entry[] = [
   { code: 'SHOW TABLES', title: 'Every table this endpoint exposes', body: 'With its pagination style, column count and primary key.' },
   { code: 'DESCRIBE users', title: 'Columns in both dialects', body: 'The DuckDB type, the GraphQL type, the nested path it came from, and whether the workbench added it.' },
   { code: 'SHOW SETTINGS', title: 'What the next statement will do', body: 'Pushdown, cache, row budget, page size and depth for this connection.' },
-  { code: 'SET pushdown = off', title: 'Stop delegating filters', body: 'Row counts in the Plan panel change; results do not. That is the invariant.' },
+  { code: 'SET pushdown = off', title: 'Stop delegating filters', body: 'Everything is fetched and filtered locally. Useful to compare: row counts in the Plan panel should change while the result does not.' },
   { code: 'SET max_rows = 50000', title: 'Raise the row budget', body: 'Also page_size and depth. These last for the session.' },
   {
     code: 'MATERIALIZE users(first: 5000) AS users_snapshot',

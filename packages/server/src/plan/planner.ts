@@ -147,7 +147,7 @@ export async function runStatement(options: RunStatementOptions): Promise<QueryR
 
   // 6. Build a fetch plan for each root, then emit it before any network traffic.
   const planEntries: FetchPlanEntry[] = [];
-  const specs = new Map<string, { spec: FetchSpec; plan: ReturnType<typeof buildFetchDocument>; maxRows: number; useCache: boolean }>();
+  const specs = new Map<string, { spec: FetchSpec; plan: ReturnType<typeof buildFetchDocument>; maxRows: number; useCache: boolean; capIsIntentional: boolean }>();
 
   for (const root of roots) {
     const options_ = resolveEngineOptions(root.binding.options, pre.options, session, connection, options);
@@ -165,8 +165,19 @@ export async function runStatement(options: RunStatementOptions): Promise<QueryR
     // A LIMIT can be sent upstream only when nothing above the table could change which rows win.
     let maxRows = options_.maxRows;
     const limitPush = analysis.pushableLimit;
-    if (limitPush && limitPush.relation === root.binding.relation && root.table.pagination.style !== 'none') {
+    // ...and only when every WHERE term was delegated too. A term filtered locally after fetching
+    // N rows would leave fewer than N -- the wrong answer, not merely a slower one.
+    const everyFilterDelegated =
+      pushdown.skipped.length === 0 && pushdown.pushed.length === analysis.whereTerms;
+    let capIsIntentional = false;
+    if (
+      limitPush &&
+      limitPush.relation === root.binding.relation &&
+      root.table.pagination.style !== 'none' &&
+      everyFilterDelegated
+    ) {
       maxRows = Math.min(maxRows, limitPush.rows);
+      capIsIntentional = true;
     }
 
     // `users(first: 120)` reads as "the first 120 users", and `orders(limit: 50)` as "50 orders".
@@ -181,7 +192,10 @@ export async function runStatement(options: RunStatementOptions): Promise<QueryR
           : undefined;
     if (rowCountArg && root.binding.options.allPages !== true) {
       const explicit = root.binding.args[rowCountArg];
-      if (typeof explicit === 'number' && explicit > 0) maxRows = Math.min(maxRows, explicit);
+      if (typeof explicit === 'number' && explicit > 0 && explicit <= maxRows) {
+        maxRows = explicit;
+        capIsIntentional = true;
+      }
     }
 
     const projection = root.columns.filter((c) => c.path.length > 0).map((c) => c.path);
@@ -215,7 +229,7 @@ export async function runStatement(options: RunStatementOptions): Promise<QueryR
       cacheKey: '',
     };
     planEntries.push(entry);
-    specs.set(root.binding.relation, { spec, plan: documentPlan, maxRows, useCache: options_.useCache });
+    specs.set(root.binding.relation, { spec, plan: documentPlan, maxRows, useCache: options_.useCache, capIsIntentional });
   }
 
   emit({ type: 'plan', index: options.index, plan: planEntries });
@@ -266,7 +280,9 @@ export async function runStatement(options: RunStatementOptions): Promise<QueryR
           done: info.done,
         }),
     });
-    warnings.push(...fetched.warnings);
+    // Stopping at a LIMIT or first:/limit: the statement asked for is not a truncation.
+    const intentional = prepared.capIsIntentional;
+    warnings.push(...(intentional ? fetched.warnings.filter((w) => !/row budget/.test(w)) : fetched.warnings));
     entry.cacheKey = fetched.file;
 
     const shredStarted = now();
@@ -289,7 +305,7 @@ export async function runStatement(options: RunStatementOptions): Promise<QueryR
       bytes: fetched.bytes,
       ms: fetched.ms,
       cache: fetched.cache,
-      truncated: fetched.truncated,
+      truncated: fetched.truncated && !intentional,
       requests: fetched.requests,
       retries: fetched.retries,
     });

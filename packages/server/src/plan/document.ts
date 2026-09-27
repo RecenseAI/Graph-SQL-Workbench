@@ -51,6 +51,10 @@ export interface DocumentPlan {
   endCursorField?: string;
   /** Path from `data[alias]` to a total-count field, when the endpoint has one. */
   totalField?: string;
+  /** Page style: path from `data[alias]` to the endpoint's own next-page indicator. */
+  nextPagePath?: string[];
+  /** Page style: false when the endpoint picks its own page size. */
+  pageSizeKnown?: boolean;
 }
 
 const name = (value: string): NameNode => ({ kind: Kind.NAME, value });
@@ -245,8 +249,9 @@ export function buildFetchDocument(spec: FetchSpec): DocumentPlan {
       value: declareVariable(varName, 'Int', typeof seed === 'number' ? seed : 0),
     });
     pageVariable = { name: varName, kind: 'offset' };
-  } else if (pagination.style === 'page' && pagination.pageArg && pagination.perPageArg) {
-    if (args[pagination.perPageArg] === undefined) {
+  } else if (pagination.style === 'page' && pagination.pageArg) {
+    // Some endpoints choose their own page size and take only a page number.
+    if (pagination.perPageArg && args[pagination.perPageArg] === undefined) {
       rootArgs.push({ kind: Kind.ARGUMENT, name: name(pagination.perPageArg), value: { kind: Kind.INT, value: String(spec.pageSize) } });
     }
     const varName = `page_${spec.alias}`;
@@ -301,6 +306,20 @@ export function buildFetchDocument(spec: FetchSpec): DocumentPlan {
     rootSelections.push({ kind: Kind.FIELD, name: name(pagination.totalField) });
   }
 
+  // The endpoint's own "is there another page" field, e.g. info { next }.
+  if (pagination.style === 'page' && pagination.nextPagePath?.length) {
+    const [head, leaf] = pagination.nextPagePath;
+    if (head && leaf) {
+      rootSelections.push({
+        kind: Kind.FIELD,
+        name: name(head),
+        selectionSet: { kind: Kind.SELECTION_SET, selections: [{ kind: Kind.FIELD, name: name(leaf) }] },
+      });
+    } else if (head) {
+      rootSelections.push({ kind: Kind.FIELD, name: name(head) });
+    }
+  }
+
   const rootField: FieldNode = {
     kind: Kind.FIELD,
     alias: name(spec.alias),
@@ -335,6 +354,11 @@ export function buildFetchDocument(spec: FetchSpec): DocumentPlan {
     if (pagination.endCursorField) plan.endCursorField = pagination.endCursorField;
   }
   if (pagination.totalField && nodesPath.length > 0) plan.totalField = pagination.totalField;
+  if (pagination.style === 'page') {
+    if (pagination.nextPagePath?.length) plan.nextPagePath = pagination.nextPagePath;
+    // With no page-size argument, a short page says nothing about whether more exist.
+    plan.pageSizeKnown = Boolean(pagination.perPageArg);
+  }
   return plan;
 }
 

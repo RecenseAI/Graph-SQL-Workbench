@@ -98,7 +98,12 @@ export async function fetchTable(options: FetchTableOptions): Promise<FetchTable
 
   const variables: Record<string, unknown> = { ...plan.variables };
   const pageSize = Math.max(1, spec.pageSize);
-  const maxPages = Math.min(ABSOLUTE_MAX_PAGES, Math.ceil(maxRows / pageSize) + 5);
+  // When the endpoint picks its own page size, pages may be far smaller than requested, so the
+  // page count is bounded only by the absolute cap; the row budget still stops the loop.
+  const maxPages =
+    plan.pageSizeKnown === false
+      ? ABSOLUTE_MAX_PAGES
+      : Math.min(ABSOLUTE_MAX_PAGES, Math.ceil(maxRows / pageSize) + 5);
   let previousCursor: string | null = null;
 
   const write = (line: string): void => {
@@ -222,8 +227,18 @@ export async function fetchTable(options: FetchTableOptions): Promise<FetchTable
         continue;
       }
 
-      // Offset and page styles both stop on a short page.
-      if (pageRows.length < pageSize) break;
+      // An empty page always ends the loop.
+      if (pageRows.length === 0) break;
+
+      if (plan.pageVariable.kind === 'page' && plan.nextPagePath) {
+        // The endpoint says itself whether there is more: `next: 3` / `next: null`,
+        // or `hasNextPage: true/false`. That beats any guess from the page's length.
+        const next = readPath(root, plan.nextPagePath);
+        if (next === null || next === undefined || next === false) break;
+      } else if (plan.pageSizeKnown !== false && pageRows.length < pageSize) {
+        // Offset and sized page styles stop on a short page.
+        break;
+      }
       if (rowCount >= maxRows) {
         truncated = true;
         warnings.push(

@@ -13,4 +13,5 @@ secrets.json
 
 .test-data/
 .playwright-data/
+.probe-data/
 

@@ -9,6 +9,7 @@ import { invalidateConnectionCache } from '../src/fetch/cache.ts';
 import { resetSession } from '../src/sql/statements.ts';
 import { demoConnection, startDemoApi, type DemoHandle } from './helpers/demo-server.ts';
 import { orderTotals, revenueByCountry, unitsByCategory, userCount } from '../../demo-api/src/expected.ts';
+import { dataset } from '../../demo-api/src/seed.ts';
 
 let demo: DemoHandle;
 let conn: DuckDBConnection;
@@ -237,6 +238,36 @@ describe('pushdown correctness', () => {
     expect(grouped.result.rowCount).toBe(2);
     // The aggregate needs every row, so the LIMIT must not have been sent upstream.
     expect(grouped.result.stats[0]?.rows).toBe(800);
+  }, 120_000);
+});
+
+describe('LIMIT is only sent upstream when it cannot change the answer', () => {
+  it('keeps LIMIT local when there is an ORDER BY, so the top N are really the top N', async () => {
+    const { result } = await run('SELECT id, lifetimeValue FROM users ORDER BY lifetimeValue DESC LIMIT 3');
+    const expected = [...dataset.users].sort((a, b) => b.lifetimeValue - a.lifetimeValue).slice(0, 3);
+    expect(rowsAsObjects(result).map((r) => r.id)).toEqual(expected.map((u) => u.id));
+    // Every row had to be read to know which three were largest.
+    expect(result.stats[0]?.rows).toBe(800);
+  }, 120_000);
+
+  it('keeps LIMIT local when a filter could not be delegated, so no rows go missing', async () => {
+    const { result } = await run('SELECT id FROM users WHERE lifetimeValue > 10000 LIMIT 5');
+    expect(result.rowCount).toBe(5);
+    expect(result.plan[0]?.pushed).toEqual([]);
+  }, 120_000);
+
+  it('still sends LIMIT when every filter was delegated and nothing reorders the rows', async () => {
+    const { result } = await run("SELECT id FROM users WHERE country = 'DE' LIMIT 4");
+    expect(result.rowCount).toBe(4);
+    expect(result.stats[0]?.rows).toBe(4);
+    expect(result.stats[0]?.truncated).toBe(false);
+  }, 120_000);
+
+  it('does not call a result truncated when it stopped where first: asked it to', async () => {
+    const { result } = await run('SELECT count(*) AS n FROM users(first: 30)');
+    expect(num(rowsAsObjects(result)[0]?.n)).toBe(30);
+    expect(result.stats[0]?.truncated).toBe(false);
+    expect(result.warnings.join(' ')).not.toMatch(/row budget/);
   }, 120_000);
 });
 

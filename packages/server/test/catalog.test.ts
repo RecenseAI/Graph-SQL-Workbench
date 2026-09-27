@@ -325,7 +325,7 @@ describe('argument surface', () => {
     input StringCompare { _eq: String _in: [String!] }
     input Sort { field: String! direction: Direction! = ASC }
     input Where { name: StringCompare tags: [String!] }
-    type Row { id: ID! }
+    type Row { id: ID! name: String }
     type Query { rows(where: Where, sort: [Sort!], limit: Int = 25, needed: ID!): [Row!]! }
   `);
   const rows = table(catalog, 'rows');

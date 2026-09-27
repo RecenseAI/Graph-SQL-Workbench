@@ -1,5 +1,4 @@
 import { defineConfig } from 'vitest/config';
-import { join } from 'node:path';
 
 export default defineConfig({
   test: {
@@ -9,8 +8,8 @@ export default defineConfig({
     hookTimeout: 60_000,
     pool: 'forks',
     reporters: ['default'],
-    // Tests get their own data directory, so a running workbench (which holds a lock on its
-    // DuckDB file) can never make the suite fail, and the suite never touches real connections.
-    env: { GQLWB_DATA_DIR: join(process.cwd(), '.test-data') },
+    // Tests get their own data directory, one per worker (see vitest.setup.ts), so neither a
+    // running workbench nor a parallel test file can hold the DuckDB lock the suite needs.
+    setupFiles: ['./vitest.setup.ts'],
   },
 });

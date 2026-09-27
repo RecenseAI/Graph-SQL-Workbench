@@ -40,7 +40,8 @@ export interface BuildCatalogOptions {
 
 /** Guardrails so a large federated schema cannot produce a catalog nobody can read. */
 const MAX_CHILD_TABLES_PER_ROOT = 12;
-const MAX_TOTAL_TABLES = 400;
+/** Root tables only; child tables are bounded per root. Hasura-style schemas have hundreds. */
+const MAX_ROOT_TABLES = 1000;
 const MAX_COLUMNS_PER_TABLE = 250;
 
 interface WalkContext {
@@ -50,6 +51,35 @@ interface WalkContext {
   /** Child tables discovered during the walk, built after the parent is complete. */
   pendingChildren: PendingChild[];
   unmappedScalars: Set<string>;
+  /** Paths not flattened because of the depth limit; summarised once per table. */
+  depthStops: string[];
+  /** Paths not flattened because the type repeats on its own path. */
+  cycleStops: string[];
+  /** Nested composite fields skipped because they take arguments. */
+  argRelations: number;
+}
+
+/**
+ * One line per table for fields that were not flattened, rather than one line per field. A
+ * large schema can have hundreds of these, and a list that long hides the warnings that matter.
+ */
+function summariseStops(tableName: string, ctx: WalkContext): void {
+  const sample = (paths: string[]) => {
+    const shown = paths.slice(0, 4).join(', ');
+    return paths.length > 4 ? `${shown} and ${paths.length - 4} more` : shown;
+  };
+  if (ctx.depthStops.length > 0) {
+    ctx.warnings.push(
+      `${tableName}: ${ctx.depthStops.length} nested field(s) stopped at the depth limit ${ctx.maxDepth} (${sample(ctx.depthStops)}). Raise the column depth on the connection to include them.`,
+    );
+  }
+  if (ctx.cycleStops.length > 0) {
+    ctx.warnings.push(
+      `${tableName}: ${ctx.cycleStops.length} field(s) not flattened because their type repeats on the path, a cycle (${sample(ctx.cycleStops)}).`,
+    );
+  }
+  ctx.depthStops = [];
+  ctx.cycleStops = [];
 }
 
 interface PendingChild {
@@ -109,7 +139,12 @@ function isRequiredArg(arg: GraphQLArgument): boolean {
   return isNonNullType(arg.type) && arg.defaultValue === undefined;
 }
 
-function buildArg(arg: GraphQLArgument, recurse: boolean): CatalogArg {
+/**
+ * `columnNames` limits the second level of input expansion to fields that are columns of the
+ * table. Pushdown only ever writes `where.<column>.<operator>`; expanding every relationship's
+ * filter as well made a Hasura catalog's argument metadata alone run to 15 MB.
+ */
+function buildArg(arg: GraphQLArgument, recurse: boolean, columnNames?: Set<string>): CatalogArg {
   const named = getNamedType(arg.type);
   const base: CatalogArg = {
     name: arg.name,
@@ -146,7 +181,7 @@ function buildArg(arg: GraphQLArgument, recurse: boolean): CatalogArg {
       if (field.description) nested.description = field.description;
       if (isEnumType(fieldNamed)) nested.enumValues = fieldNamed.getValues().map((v) => v.name);
       // One more level, which is what Hasura-style `where: {col: {_eq: v}}` needs.
-      if (isInputObjectType(fieldNamed)) {
+      if (isInputObjectType(fieldNamed) && (!columnNames || columnNames.has(field.name))) {
         nested.inputFields = Object.values(fieldNamed.getFields()).map((leaf) => {
           const leafNamed = getNamedType(leaf.type);
           const leafArg: CatalogArg = {
@@ -235,7 +270,20 @@ function walkColumns(
     const composite = isObjectType(named) || isInterfaceType(named) || isUnionType(named) ? (named as RowType) : null;
     if (!composite) continue;
 
+    // A nested field that takes arguments -- Hasura's `posts(where:, limit:)`, a Relay
+    // `friendsConnection(first:)` -- is a query in its own right, not data embedded in the row.
+    // Expanding every one of them made a Hasura schema's catalog run to tens of megabytes and a
+    // thousand duplicate tables. They stay reachable as their own root tables and joins.
+    if (field.args.length > 0) {
+      ctx.argRelations += 1;
+      continue;
+    }
+
     if (listDepth > 0) {
+      // A list inside a nested object (continent.countries on a country) is that object's
+      // relationship, not this row's. Making every such list a table buried the useful ones
+      // under dozens of near-duplicates, so only lists directly on the row become child tables.
+      if (path.length > 0) continue;
       // A list of objects becomes its own table, joinable back to this one.
       ctx.pendingChildren.push({ path: fieldPath, rowType: composite, listDepth });
       columns.push({
@@ -255,13 +303,11 @@ function walkColumns(
 
     // A nested single object: flatten it, subject to depth and cycle limits.
     if (depth >= ctx.maxDepth) {
-      ctx.warnings.push(
-        `Stopped at ${fieldPath.join('.')}: depth limit ${ctx.maxDepth} reached. Raise maxDepth on the connection to go deeper.`,
-      );
+      ctx.depthStops.push(fieldPath.join('.'));
       continue;
     }
     if (typeChain.includes(named.name)) {
-      ctx.warnings.push(`Stopped at ${fieldPath.join('.')}: ${named.name} repeats on this path (cycle).`);
+      ctx.cycleStops.push(fieldPath.join('.'));
       continue;
     }
     columns.push(
@@ -353,6 +399,7 @@ export function buildCatalog(schema: GraphQLSchema, options: BuildCatalogOptions
   const unmappedScalars = new Set<string>();
   const tables: CatalogTable[] = [];
   const tableNames = new NameRegistry();
+  let argRelationsTotal = 0;
 
   const queryType = schema.getQueryType();
   if (!queryType) {
@@ -360,8 +407,8 @@ export function buildCatalog(schema: GraphQLSchema, options: BuildCatalogOptions
   }
 
   for (const field of Object.values(queryType.getFields())) {
-    if (tables.length >= MAX_TOTAL_TABLES) {
-      warnings.push(`Stopped after ${MAX_TOTAL_TABLES} tables. Narrow the schema or raise the limit.`);
+    if (tables.filter((t) => !t.isChild).length >= MAX_ROOT_TABLES) {
+      warnings.push(`Stopped after ${MAX_ROOT_TABLES} Query fields; the rest are not available as tables.`);
       break;
     }
 
@@ -376,6 +423,9 @@ export function buildCatalog(schema: GraphQLSchema, options: BuildCatalogOptions
       warnings,
       pendingChildren: [],
       unmappedScalars,
+      depthStops: [],
+      cycleStops: [],
+      argRelations: 0,
     };
 
     let columns: CatalogColumn[] = [];
@@ -428,6 +478,8 @@ export function buildCatalog(schema: GraphQLSchema, options: BuildCatalogOptions
       });
     }
 
+    summariseStops(tableName, ctx);
+    argRelationsTotal += ctx.argRelations;
     const primaryKey = findPrimaryKey(columns);
     for (const synthetic of syntheticColumns('root')) {
       if (!columnNames.has(synthetic.name)) {
@@ -442,7 +494,13 @@ export function buildCatalog(schema: GraphQLSchema, options: BuildCatalogOptions
       rowTypeName: shape.rowType?.name ?? getNamedType(field.type).name,
       pagination: shape.pagination,
       columns,
-      args: field.args.map((arg) => buildArg(arg, true)),
+      args: field.args.map((arg) =>
+        buildArg(
+          arg,
+          true,
+          new Set(columns.filter((c) => !c.synthetic && c.path.length === 1).map((c) => c.path[0] as string)),
+        ),
+      ),
       childTables: [],
       isChild: false,
     };
@@ -452,11 +510,16 @@ export function buildCatalog(schema: GraphQLSchema, options: BuildCatalogOptions
     tables.push(table);
 
     // Child tables, breadth-first, each with a fresh depth budget.
-    const queue = ctx.pendingChildren.map((child) => ({ child, parent: table }));
+    // `chain` holds the row types from the root down to this child's parent. A child whose type
+    // is already on it (country -> languages -> countries -> ...) is a cycle: it adds no data the
+    // user cannot reach by joining the root table, and following it only multiplies tables.
+    const rootChain = [table.rowTypeName];
+    const queue = ctx.pendingChildren.map((child) => ({ child, parent: table, chain: rootChain }));
     let created = 0;
     while (queue.length > 0) {
       const next = queue.shift();
       if (!next) break;
+      if (next.chain.includes(next.child.rowType.name)) continue;
       if (created >= MAX_CHILD_TABLES_PER_ROOT) {
         warnings.push(
           `${field.name} has more nested lists than the ${MAX_CHILD_TABLES_PER_ROOT}-child limit; the rest were skipped.`,
@@ -473,6 +536,9 @@ export function buildCatalog(schema: GraphQLSchema, options: BuildCatalogOptions
         warnings,
         pendingChildren: [],
         unmappedScalars,
+        depthStops: [],
+        cycleStops: [],
+        argRelations: 0,
       };
 
       let childColumns: CatalogColumn[] = [];
@@ -501,6 +567,8 @@ export function buildCatalog(schema: GraphQLSchema, options: BuildCatalogOptions
         );
       }
 
+      summariseStops(childName, childCtx);
+      argRelationsTotal += childCtx.argRelations;
       const childPrimaryKey = findPrimaryKey(childColumns);
       for (const synthetic of syntheticColumns('child', next.parent.primaryKey)) {
         if (!childColumnNames.has(synthetic.name)) {
@@ -530,7 +598,7 @@ export function buildCatalog(schema: GraphQLSchema, options: BuildCatalogOptions
 
       // Grandchildren, so a list inside a list still produces a usable table.
       for (const grandchild of childCtx.pendingChildren) {
-        queue.push({ child: grandchild, parent: childTable });
+        queue.push({ child: grandchild, parent: childTable, chain: [...next.chain, next.child.rowType.name] });
       }
     }
   }
@@ -589,7 +657,25 @@ export function buildCatalog(schema: GraphQLSchema, options: BuildCatalogOptions
 
   // The same nested type is often reached from several root fields, so the same note about a
   // depth or cycle limit can be generated repeatedly. Show each distinct one once.
-  const uniqueWarnings = [...new Set(warnings)];
+  // Per-table notes are useful for a handful of tables and noise for hundreds, so past a point
+  // the rest are counted rather than listed.
+  const MAX_TABLE_NOTES = 12;
+  const isTableNote = (w: string) =>
+    /stopped at the depth limit|a cycle \(|-child limit|no pagination arguments|only the first page/.test(w);
+  const deduped = [...new Set(warnings)];
+  const tableNotes = deduped.filter(isTableNote);
+  const uniqueWarnings = deduped.filter((w) => !isTableNote(w));
+  uniqueWarnings.push(...tableNotes.slice(0, MAX_TABLE_NOTES));
+  if (tableNotes.length > MAX_TABLE_NOTES) {
+    uniqueWarnings.push(
+      `${tableNotes.length - MAX_TABLE_NOTES} more notes like these on other tables (paging, depth or cycle limits). DESCRIBE a table to see exactly what it contains.`,
+    );
+  }
+  if (argRelationsTotal > 0) {
+    uniqueWarnings.push(
+      `${argRelationsTotal} nested field(s) that take their own arguments (for example Hasura relationships or Relay connections) were not expanded into columns. Query them as their own tables and join.`,
+    );
+  }
 
   return {
     connectionId: options.connectionId,

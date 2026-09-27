@@ -99,7 +99,7 @@ describe('the auto profile', () => {
   it('refuses inequality, because an argument named after a column means equality', () => {
     const out = push('ordersAuto', 'auto', [{ column: 'total', op: 'gt', value: 100 }]);
     expect(out.args).toEqual({});
-    expect(out.skipped[0]?.reason).toMatch(/only pushes equality/);
+    expect(out.skipped[0]?.reason).toMatch(/no filter-object field/);
   });
 
   it('pushes IN only when the argument is a list', () => {
@@ -123,7 +123,51 @@ describe('the auto profile', () => {
   it('skips a column with no matching argument, and says so', () => {
     const out = push('ordersAuto', 'auto', [{ column: 'id', op: 'eq', value: 'o-1' }]);
     expect(out.args).toEqual({});
-    expect(out.skipped[0]?.reason).toMatch(/no argument named id/);
+    expect(out.skipped[0]?.reason).toMatch(/no filter-object field/);
+  });
+});
+
+describe('the auto profile discovering filter objects', () => {
+  const discovery = buildCatalog(
+    buildSchema(`
+      input StringOp { eq: String ne: String in: [String!] regex: String contains: String }
+      input CountryFilter { code: StringOp continent: StringOp name: String }
+      type Country { code: ID! name: String! continent: String! }
+      type Query { countries(filter: CountryFilter): [Country!]! }
+    `),
+    { connectionId: 'd', endpoint: 'http://x.test/graphql', maxDepth: 3, pageSize: 100 },
+  );
+  const countries = discovery.tables.find((t) => t.name === 'countries') as CatalogTable;
+  const auto = (predicates: ExtractedPredicate[]) =>
+    computePushdown({ table: countries, predicates, connection: connection('auto'), explicitArgs: {}, enabled: true });
+
+  it('pushes into a filter object with a plain `eq` operator, as the Countries API spells it', () => {
+    const out = auto([{ column: 'code', op: 'eq', value: 'DE' }]);
+    expect(out.args).toEqual({ filter: { code: { eq: 'DE' } } });
+    expect(out.pushed[0]?.via).toBe('filter object');
+  });
+
+  it('uses Hasura spellings found in the schema without a profile being chosen', () => {
+    const out = computePushdown({
+      table: table('ordersNested'),
+      predicates: [{ column: 'total', op: 'gt', value: 5 }],
+      connection: connection('auto'),
+      explicitArgs: {},
+      enabled: true,
+    });
+    expect(out.args).toEqual({ where: { total: { _gt: 5 } } });
+  });
+
+  it('pushes a bare scalar in a filter object for equality only', () => {
+    expect(auto([{ column: 'name', op: 'eq', value: 'Germany' }]).args).toEqual({ filter: { name: 'Germany' } });
+    expect(auto([{ column: 'name', op: 'ne', value: 'Germany' }]).args).toEqual({});
+  });
+
+  it('never sends an operator whose meaning varies between APIs', () => {
+    // `contains` and `regex` exist in the schema, but a stricter upstream reading would drop rows.
+    const out = auto([{ column: 'code', op: 'like', value: 'D%' }]);
+    expect(out.args).toEqual({});
+    expect(out.skipped[0]?.reason).toMatch(/unambiguous/);
   });
 });
 

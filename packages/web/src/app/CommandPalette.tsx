@@ -55,7 +55,7 @@ export function CommandPalette() {
         id: 'pushdown',
         group: 'Run',
         label: pushdown ? 'Turn filter pushdown off' : 'Turn filter pushdown on',
-        hint: 'Row counts change, results do not',
+        hint: 'Compare results with and without',
         run: () => setPushdown(!pushdown),
       },
       {

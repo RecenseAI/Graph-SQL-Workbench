@@ -207,8 +207,10 @@ export function PlanPanel({ result }: { result: QueryResult }) {
       ))}
 
       <p className="rounded border border-line bg-bg-2 p-2 text-[10px] leading-relaxed text-ink-3">
-        A delegated filter is also kept in the SQL, so it can only ever reduce what is fetched -- never change the
-        answer. Turn pushdown off in the toolbar and the row counts here change while the result does not.
+        A delegated filter is also kept in the SQL, so if the API filters more loosely than SQL, the extra rows are
+        removed locally. Filters are only delegated through arguments the schema declares, with unambiguous operators
+        -- but if an API's filter means something stricter than it looks, switch pushdown off in the toolbar and
+        compare: the row counts here should change while the result does not.
       </p>
 
       {result.explain ? (

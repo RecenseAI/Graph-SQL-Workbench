@@ -65,7 +65,7 @@ test('explains the translation in the GraphQL and Plan panels', async ({ page })
 
   await page.getByRole('tab', { name: /Plan/ }).click();
   await expect(dock).toContainText('users');
-  await expect(dock).toContainText('never change the');
+  await expect(dock).toContainText('removed locally');
 
   await page.getByRole('tab', { name: /Chart/ }).click();
   await expect(dock.locator('svg path').first()).toBeVisible();

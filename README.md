@@ -105,15 +105,22 @@ argument with a compatible type. Each connection has a pushdown profile:
 
 | Profile | Filters it sends |
 | --- | --- |
-| `auto` | Exact argument names, equality only. Safe for any endpoint. |
-| `hasura` | `where: {col: {_eq: …}}` |
+| `auto` (default) | Arguments with the column's exact name (equality), plus filter objects it can find in the schema, such as `filter: {code: {eq: …}}` or `where: {col: {_eq: …}}`. Only unambiguous operators: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`, is-null. |
+| `hasura` | `where: {col: {_eq: …}}`, including `_like` |
 | `strapi` | Strapi's filter format |
 | `flat` | Arguments named like `col_gt` |
 | `none` | Nothing. All filtering happens locally. |
 
-**A filter that's sent to the endpoint is also kept in the SQL.** So if the workbench misreads what
-an argument means, the only effect is fetching more rows than necessary. The answer never changes.
-The test suite checks this: the same query runs with pushdown on and off, and the results must match.
+**How safe is it?** A filter that's sent to the endpoint is also kept in the SQL, so if the API
+filters more loosely than SQL would (for example, ignoring case), the extra rows are removed
+locally. The reverse isn't covered: if an API's filter is stricter than it looks, those rows never
+arrive. That's why the workbench only sends filters to arguments the schema declares, with a matching
+type, and never sends operators such as `contains` or `regex` whose meaning varies between APIs. The
+**Plan** tab lists every filter that was sent. If a result looks wrong, turn pushdown off in the
+toolbar and compare: the rows fetched should change, and the result should not.
+
+`LIMIT` is sent to the endpoint only when that can't change the answer: a single table, no joins,
+aggregates, `DISTINCT` or `ORDER BY`, and every `WHERE` filter already sent.
 
 ## Architecture
 
@@ -156,7 +163,7 @@ folder's database at a time.
 ## Tests
 
 ```bash
-npm test           # 207 unit + integration tests (catalog, pre-pass, pushdown, fetcher, full pipeline)
+npm test           # 216 unit + integration tests (catalog, pre-pass, pushdown, fetcher, full pipeline)
 npm run test:e2e   # 8 browser tests driving the real app (Playwright)
 npm run typecheck
 ```
@@ -166,6 +173,20 @@ results with totals computed independently in plain JavaScript from the same see
 
 For `test:e2e`, Playwright needs a Chromium build. Run `npx playwright install chromium` once. If
 your browsers live elsewhere, set `PLAYWRIGHT_BROWSERS_PATH`.
+
+## Tested against public APIs
+
+`npx tsx scripts/probe-apis.ts [name]` runs the real engine against these endpoints (no auth needed).
+Results from the last run:
+
+| API | Style | Result |
+| --- | --- | --- |
+| [Countries](https://countries.trevorblades.com/) | plain lists, `filter: {code: {eq}}` | Works. 250 countries; nested `languages` join; `WHERE code = 'DE'` sent as a filter, fetching 1 row instead of 250. |
+| [Rick and Morty](https://rickandmortyapi.com/graphql) | page numbers, `info { next }` | Works. All 826 characters across 42 pages. |
+| [SWAPI](https://swapi-graphql.netlify.app/graphql) | Relay connections | Works. All 82 people over 2 pages; 6 films. |
+| [PokeAPI](https://beta.pokeapi.co/graphql/v1beta) | Hasura, 459 root fields | Works. `where._gt` filters and `limit:` sent to the API. |
+| [AniList](https://graphql.anilist.co) | one `Page` wrapper holding many lists | Only partly supported: the lists inside `Page(...)` aren't yet tables of their own. |
+| SpaceX community API | offset | Its upstream (`api.spacexdata.com`) was returning HTML errors; the workbench reported the error correctly. |
 
 ## Limitations
 
