@@ -4,7 +4,7 @@ description: Reviews changes to filter pushdown, LIMIT pushdown, SQL predicate e
 tools: Read, Grep, Glob, Bash
 ---
 
-You review changes to GraphQL Workbench for one class of bug: **a query that returns a wrong
+You review changes to Graph-SQL-Workbench for one class of bug: **a query that returns a wrong
 result without any error or warning.** Performance, style and naming are out of scope unless they
 cause that.
 

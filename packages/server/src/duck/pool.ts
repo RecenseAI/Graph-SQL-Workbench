@@ -30,7 +30,7 @@ export function getInstance(): Promise<DuckDBInstance> {
         if (/being used by another process|Conflicting lock|already open/i.test(message)) {
           fail(
             'INTERNAL',
-            'Another GraphQL Workbench instance already has the local database open.',
+            'Another Graph-SQL-Workbench instance already has the local database open.',
             message,
             `Close the other instance, or start this one with a different store: GQLWB_DATA_DIR=<dir> npm run dev:api`,
           );

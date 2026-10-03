@@ -1,15 +1,36 @@
-# GraphQL Workbench
+# Graph-SQL-Workbench
 
-A MySQL-Workbench-style SQL IDE for **any** GraphQL endpoint.
+**SQL analytics on top of any read-only GraphQL endpoint.**
 
-GraphQL fetches data, but it can't query it: you can't join two root fields on a relationship the
-schema doesn't model, and you can't use `GROUP BY`, `SUM`, `MAX` or `RANK()`. This tool adds all
-of that:
+Your team already has the data behind a GraphQL API. Analysts want to `JOIN` it, `GROUP BY` it and
+rank it, and GraphQL can't do any of that. The usual fix is a pipeline: an ETL job, a warehouse, a
+dashboard tool, and someone to maintain all three.
+
+Graph-SQL-Workbench removes the pipeline. **Expose a read-only GraphQL endpoint. The workbench
+takes care of the rest.**
 
 > **GraphQL fetches. DuckDB computes.**
 
-Point it at an endpoint and every field on the `Query` type becomes a table. When you write SQL,
-the workbench:
+## Why teams use it
+
+- **No ETL, no warehouse.** Every field on the `Query` type becomes a table the moment you connect.
+  There is nothing to model, sync or schedule.
+- **Analysts get real SQL.** Joins across root fields (even where the schema models no
+  relationship), `GROUP BY`, `SUM`, `MAX`, window functions like `RANK()`, CTEs, `PIVOT`. The
+  dialect is DuckDB SQL, which is close to PostgreSQL.
+- **Engineers keep control.** The only thing a team has to provide is a read-only GraphQL API,
+  which they own, secure and rate-limit as they already do. The workbench never sends mutations:
+  they are refused. Filters are sent to the endpoint only when the schema declares a matching
+  argument, so the API isn't asked for more than it needs.
+- **Fast iteration.** Results come back in a grid you can sort and filter over the whole result,
+  chart in one click, and export to CSV, JSON, Parquet, Markdown or SQL INSERTs.
+- **Honest about what it did.** The **Plan** tab shows the exact GraphQL that was sent, which
+  filters went to the endpoint and which stayed local, how many rows and pages were fetched, and
+  whether the row budget cut anything short.
+
+## How it works
+
+Point it at an endpoint and write SQL. The workbench:
 
 1. works out which GraphQL requests it needs,
 2. sends the filters the endpoint supports as arguments,
@@ -29,6 +50,18 @@ ORDER BY revenue DESC;
 ```
 
 Neither `users` nor `orders` knows about the other. The join is yours.
+
+## What a team needs to do
+
+1. **Expose a read-only GraphQL endpoint** over the data you want analysed. A dedicated read-only
+   role, a replica, or a schema that contains only `Query` is ideal. Introspection should be on;
+   if it isn't, you can paste the SDL instead.
+2. **Give analysts a token** (bearer, custom header or basic auth) scoped to that endpoint.
+3. **They add a connection** in the workbench and start writing SQL.
+
+That's the whole setup. There are no tables to create and no jobs to keep running. Today the
+workbench runs on each analyst's machine; connections are plain JSON, so a team can share the
+non-secret part (`workspace.json`) and keep tokens local.
 
 ## Quick start
 

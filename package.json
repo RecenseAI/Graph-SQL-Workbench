@@ -1,5 +1,5 @@
 {
-    "name":  "graphql-workbench",
+    "name":  "graph-sql-workbench",
     "private":  true,
     "version":  "1.0.0",
     "description":  "A MySQL-Workbench-class SQL IDE for any GraphQL endpoint. GraphQL fetches, DuckDB computes.",

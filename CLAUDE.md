@@ -1,4 +1,4 @@
-# GraphQL Workbench
+# Graph-SQL-Workbench
 
 A SQL IDE for any GraphQL endpoint. **GraphQL fetches, DuckDB computes**: SQL is parsed, turned
 into GraphQL requests (with filter pushdown and pagination), the JSON is loaded into DuckDB, and

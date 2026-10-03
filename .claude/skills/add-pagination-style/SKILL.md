@@ -1,6 +1,6 @@
 ---
 name: add-pagination-style
-description: Teach GraphQL Workbench a new way that GraphQL APIs page through results (a new argument convention, a next-page field, a cursor inside a wrapper). Use when a probe or bug report shows a list API read as `pagination none`, stopping after one page, or looping.
+description: Teach Graph-SQL-Workbench a new way that GraphQL APIs page through results (a new argument convention, a next-page field, a cursor inside a wrapper). Use when a probe or bug report shows a list API read as `pagination none`, stopping after one page, or looping.
 ---
 
 # Add a pagination style

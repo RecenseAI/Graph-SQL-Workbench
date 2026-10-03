@@ -23,7 +23,7 @@ export function TitleBar() {
         <span className="text-gql">
           <IconGraph size={17} />
         </span>
-        <span className="whitespace-nowrap text-[13px] font-semibold tracking-tight">GraphQL Workbench</span>
+        <span className="whitespace-nowrap text-[13px] font-semibold tracking-tight">Graph-SQL-Workbench</span>
         <span className="hidden whitespace-nowrap rounded bg-bg-3 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-ink-2 lg:inline">
           SQL over GraphQL
         </span>

@@ -1,6 +1,6 @@
 ---
 name: add-workbench-statement
-description: Add a statement that GraphQL Workbench answers itself rather than passing to DuckDB (like SHOW TABLES, DESCRIBE, SET, MATERIALIZE, REFRESH, DROP SNAPSHOT), or a MySQL-compatibility macro. Use when adding new SQL syntax, session settings or catalog commands.
+description: Add a statement that Graph-SQL-Workbench answers itself rather than passing to DuckDB (like SHOW TABLES, DESCRIBE, SET, MATERIALIZE, REFRESH, DROP SNAPSHOT), or a MySQL-compatibility macro. Use when adding new SQL syntax, session settings or catalog commands.
 ---
 
 # Add a workbench statement

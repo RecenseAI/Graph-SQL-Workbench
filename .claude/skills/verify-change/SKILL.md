@@ -1,6 +1,6 @@
 ---
 name: verify-change
-description: Run the full verification sequence for a change to GraphQL Workbench before calling it done -- typecheck, unit/integration tests, browser tests, a real-API probe for engine changes, and a production start. Use after any code change, before committing, or when asked "does it work?".
+description: Run the full verification sequence for a change to Graph-SQL-Workbench before calling it done -- typecheck, unit/integration tests, browser tests, a real-API probe for engine changes, and a production start. Use after any code change, before committing, or when asked "does it work?".
 ---
 
 # Verify a change

@@ -1,6 +1,6 @@
 ---
 name: onboard-graphql-api
-description: Check how well GraphQL Workbench handles a specific GraphQL endpoint (a user's API, a public API, a Dolt- or Hasura-backed server) and fix or configure what doesn't work. Use when someone asks "will this work with <API>?", reports a table missing, wrong pagination, too few rows, dates read as text, or filters not being pushed.
+description: Check how well Graph-SQL-Workbench handles a specific GraphQL endpoint (a user's API, a public API, a Dolt- or Hasura-backed server) and fix or configure what doesn't work. Use when someone asks "will this work with <API>?", reports a table missing, wrong pagination, too few rows, dates read as text, or filters not being pushed.
 ---
 
 # Onboard a GraphQL API
