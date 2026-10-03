@@ -1,6 +1,18 @@
-# Graph-SQL-Workbench
+<p align="center">
+  <img src="docs/assets/hero.svg" alt="Graph-SQL-Workbench: SQL analytics on any read-only GraphQL endpoint" width="100%">
+</p>
 
-**SQL analytics on top of any read-only GraphQL endpoint.**
+<p align="center">
+  <img alt="SQL engine: DuckDB" src="https://img.shields.io/badge/SQL-DuckDB-FFC107?style=for-the-badge&logo=duckdb&logoColor=black">
+  <img alt="Source: GraphQL" src="https://img.shields.io/badge/source-GraphQL-E10098?style=for-the-badge&logo=graphql&logoColor=white">
+  <img alt="Access: read-only" src="https://img.shields.io/badge/access-read--only-10B981?style=for-the-badge">
+  <img alt="Node 20.11+" src="https://img.shields.io/badge/node-%E2%89%A520.11-339933?style=for-the-badge&logo=nodedotjs&logoColor=white">
+  <img alt="Licence: MIT" src="https://img.shields.io/badge/licence-MIT-6366F1?style=for-the-badge">
+</p>
+
+<p align="center">
+  <b>No ETL.</b> &nbsp;·&nbsp; <b>No warehouse.</b> &nbsp;·&nbsp; <b>Just SQL.</b>
+</p>
 
 Your team already has the data behind a GraphQL API. Analysts want to `JOIN` it, `GROUP BY` it and
 rank it, and GraphQL can't do any of that. The usual fix is a pipeline: an ETL job, a warehouse, a
@@ -11,7 +23,7 @@ takes care of the rest.**
 
 > **GraphQL fetches. DuckDB computes.**
 
-## Why teams use it
+## ✨ Why teams use it
 
 - **No ETL, no warehouse.** Every field on the `Query` type becomes a table the moment you connect.
   There is nothing to model, sync or schedule.
@@ -28,7 +40,11 @@ takes care of the rest.**
   filters went to the endpoint and which stayed local, how many rows and pages were fetched, and
   whether the row budget cut anything short.
 
-## How it works
+## 🔄 How it works
+
+<p align="center">
+  <img src="docs/assets/flow.svg" alt="A read-only GraphQL API feeds the planner and fetcher, then DuckDB, then grid, charts and exports" width="100%">
+</p>
 
 Point it at an endpoint and write SQL. The workbench:
 
@@ -51,7 +67,27 @@ ORDER BY revenue DESC;
 
 Neither `users` nor `orders` knows about the other. The join is yours.
 
-## What a team needs to do
+## 📸 See it
+
+**Real SQL, real results.** Joins, aggregates and ordering over a GraphQL API, in a grid you can sort and filter:
+
+<p align="center">
+  <img src="docs/assets/screenshot-results.png" alt="The workbench running a JOIN and GROUP BY over the demo API, with results in a grid" width="100%">
+</p>
+
+**One click to a chart.** The workbench suggests a form from the shape of the result:
+
+<p align="center">
+  <img src="docs/assets/screenshot-chart.png" alt="A column chart of orders by country" width="100%">
+</p>
+
+**Nothing hidden.** The Plan tab shows what was fetched, how long each step took, and which filters were sent:
+
+<p align="center">
+  <img src="docs/assets/screenshot-plan.png" alt="The Plan tab: timing breakdown and fetch statistics per table" width="100%">
+</p>
+
+## 🚀 What a team needs to do
 
 1. **Expose a read-only GraphQL endpoint** over the data you want analysed. A dedicated read-only
    role, a replica, or a schema that contains only `Query` is ideal. Introspection should be on;
@@ -63,7 +99,7 @@ That's the whole setup. There are no tables to create and no jobs to keep runnin
 workbench runs on each analyst's machine; connections are plain JSON, so a team can share the
 non-secret part (`workspace.json`) and keep tokens local.
 
-## Quick start
+## ⚡ Quick start
 
 Requires Node 20.11 or newer.
 

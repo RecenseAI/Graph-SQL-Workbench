@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="Flow: read-only GraphQL endpoint to planner and fetcher to DuckDB to results">
+  <defs>
+    <linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#06b6d4"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#d946ef"/></linearGradient>
+    <linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f59e0b"/><stop offset="1" stop-color="#ef4444"/></linearGradient>
+    <linearGradient id="d" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#14b8a6"/></linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#64748b"/></marker>
+    <style>text{font-family:'Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif;fill:#fff}.t{font-size:22px;font-weight:700}.s{font-size:15px;opacity:.92}.cap{font-size:15px;fill:#64748b}.mono{font-family:'Cascadia Code',Consolas,Menlo,monospace}</style>
+  </defs>
+  <rect width="1200" height="300" rx="18" fill="#f8fafc" stroke="#e2e8f0"/>
+  <g>
+    <rect x="30" y="60" width="240" height="150" rx="16" fill="url(#a)"/>
+    <text class="t" x="150" y="105" text-anchor="middle">GraphQL API</text>
+    <text class="s" x="150" y="135" text-anchor="middle">read-only</text>
+    <text class="s" x="150" y="160" text-anchor="middle">every Query field</text>
+    <text class="s" x="150" y="185" text-anchor="middle">becomes a table</text>
+  </g>
+  <g>
+    <rect x="330" y="60" width="270" height="150" rx="16" fill="url(#b)"/>
+    <text class="t" x="465" y="105" text-anchor="middle">Plan &amp; fetch</text>
+    <text class="s" x="465" y="135" text-anchor="middle">pick the requests needed</text>
+    <text class="s" x="465" y="160" text-anchor="middle">push safe filters down</text>
+    <text class="s" x="465" y="185" text-anchor="middle">page through results</text>
+  </g>
+  <g>
+    <rect x="660" y="60" width="240" height="150" rx="16" fill="url(#c)"/>
+    <text class="t" x="780" y="105" text-anchor="middle">DuckDB</text>
+    <text class="s" x="780" y="135" text-anchor="middle">typed local tables</text>
+    <text class="s" x="780" y="160" text-anchor="middle">JOIN · GROUP BY</text>
+    <text class="s" x="780" y="185" text-anchor="middle">windows · CTEs</text>
+  </g>
+  <g>
+    <rect x="960" y="60" width="210" height="150" rx="16" fill="url(#d)"/>
+    <text class="t" x="1065" y="105" text-anchor="middle">Insights</text>
+    <text class="s" x="1065" y="135" text-anchor="middle">grid · charts</text>
+    <text class="s" x="1065" y="160" text-anchor="middle">CSV · Parquet · JSON</text>
+    <text class="s" x="1065" y="185" text-anchor="middle">Markdown · SQL</text>
+  </g>
+  <g stroke="#64748b" stroke-width="3" marker-end="url(#arr)">
+    <line x1="272" y1="135" x2="326" y2="135"/><line x1="602" y1="135" x2="656" y2="135"/><line x1="902" y1="135" x2="956" y2="135"/>
+  </g>
+  <text class="cap" x="150" y="250" text-anchor="middle">Your team owns this</text>
+  <text class="cap" x="465" y="250" text-anchor="middle">Graph-SQL-Workbench</text>
+  <text class="cap" x="780" y="250" text-anchor="middle">Computed locally</text>
+  <text class="cap" x="1065" y="250" text-anchor="middle">Analysts get answers</text>
+  <text class="cap mono" x="600" y="32" text-anchor="middle">SELECT … FROM users u JOIN orders o ON o.userId = u.id GROUP BY …</text>
+</svg>

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="Graph-SQL-Workbench: SQL analytics on any read-only GraphQL endpoint">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/><stop offset=".55" stop-color="#312e81"/><stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="title" x1="0" x2="1">
+      <stop offset="0" stop-color="#67e8f9"/><stop offset=".5" stop-color="#c4b5fd"/><stop offset="1" stop-color="#f9a8d4"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".85" cy=".2" r=".6">
+      <stop offset="0" stop-color="#f472b6" stop-opacity=".45"/><stop offset="1" stop-color="#f472b6" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      text{font-family:'Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif}
+      .mono{font-family:'Cascadia Code',Consolas,Menlo,monospace}
+    </style>
+  </defs>
+  <rect width="1200" height="340" rx="22" fill="url(#bg)"/>
+  <rect width="1200" height="340" rx="22" fill="url(#glow)"/>
+  <!-- graph network, right side -->
+  <g transform="translate(70 0)"><g stroke="#a5b4fc" stroke-opacity=".35" stroke-width="1.5">
+    <line x1="820" y1="70" x2="920" y2="130"/><line x1="920" y1="130" x2="1040" y2="80"/>
+    <line x1="920" y1="130" x2="990" y2="230"/><line x1="990" y1="230" x2="1110" y2="200"/>
+    <line x1="1040" y1="80" x2="1110" y2="200"/><line x1="820" y1="70" x2="860" y2="250"/>
+    <line x1="860" y1="250" x2="990" y2="230"/>
+  </g>
+  <g>
+    <circle cx="820" cy="70" r="9" fill="#67e8f9"/><circle cx="920" cy="130" r="14" fill="#c4b5fd"/>
+    <circle cx="1040" cy="80" r="10" fill="#f9a8d4"/><circle cx="990" cy="230" r="13" fill="#67e8f9"/>
+    <circle cx="1110" cy="200" r="9" fill="#fde68a"/><circle cx="860" cy="250" r="8" fill="#f9a8d4"/>
+  </g>
+  </g><!-- bar chart -->
+  <g transform="translate(1070 270)">
+    <rect x="0" y="-26" width="14" height="26" rx="3" fill="#67e8f9"/><rect x="20" y="-44" width="14" height="44" rx="3" fill="#c4b5fd"/>
+    <rect x="40" y="-34" width="14" height="34" rx="3" fill="#f9a8d4"/><rect x="60" y="-58" width="14" height="58" rx="3" fill="#fde68a"/>
+  </g>
+  <text x="60" y="130" font-size="68" font-weight="800" fill="url(#title)">Graph-SQL-Workbench</text>
+  <text x="62" y="182" font-size="28" font-weight="600" fill="#e0e7ff">SQL analytics on any read-only GraphQL endpoint</text>
+  <text x="62" y="220" font-size="20" fill="#c7d2fe">Expose the API. The workbench takes care of the rest.</text>
+  <g transform="translate(62 252)">
+    <rect width="150" height="40" rx="20" fill="#ffffff" fill-opacity=".14"/><text x="75" y="26" font-size="16" font-weight="600" fill="#fff" text-anchor="middle">No ETL</text>
+    <rect x="164" width="170" height="40" rx="20" fill="#ffffff" fill-opacity=".14"/><text x="249" y="26" font-size="16" font-weight="600" fill="#fff" text-anchor="middle">No warehouse</text>
+    <rect x="348" width="150" height="40" rx="20" fill="#ffffff" fill-opacity=".14"/><text x="423" y="26" font-size="16" font-weight="600" fill="#fff" text-anchor="middle">Just SQL</text>
+  </g>
+  <text x="62" y="60" font-size="16" class="mono" fill="#a5b4fc">GraphQL fetches. DuckDB computes.</text>
+</svg>
